@@ -3,6 +3,7 @@ import React from "react";
 import { Command } from "commander";
 import { render } from "ink";
 import { loadConfig, normalizeFolder, saveConfig } from "./config.js";
+import { computeDiff, formatDeltaText } from "./diff.js";
 import { appendSnapshot, loadHistory, saveHistory } from "./history.js";
 import { scanFolders } from "./scanner.js";
 import { App } from "./tui/App.js";
@@ -78,6 +79,11 @@ program
     let history = await loadHistory();
     const timestamp = new Date().toISOString();
 
+    const prevSnapshots = new Map(
+      results.map((r) => [r.folder, history[r.folder]?.[history[r.folder].length - 1]])
+    );
+    const firstSnapshots = new Map(results.map((r) => [r.folder, history[r.folder]?.[0]]));
+
     for (const r of results) {
       history = appendSnapshot(history, r.folder, { timestamp, files: r.files, lines: r.lines });
     }
@@ -86,7 +92,27 @@ program
     console.log(`\nScan results (${new Date(timestamp).toLocaleString()}):`);
     console.log("-".repeat(50));
     for (const r of results) {
-      console.log(`${r.folder.padEnd(30)} files: ${String(r.files).padStart(6)}  lines: ${String(r.lines).padStart(8)}`);
+      const last = history[r.folder][history[r.folder].length - 1];
+      const prev = prevSnapshots.get(r.folder);
+      const first = firstSnapshots.get(r.folder);
+
+      let line = `${r.folder.padEnd(30)} files: ${String(r.files).padStart(6)}  lines: ${String(r.lines).padStart(8)}`;
+
+      if (prev) {
+        const runDiff = computeDiff(prev, last);
+        line += `  (Δ ${formatDeltaText(runDiff.filesDelta)}f / ${formatDeltaText(runDiff.linesDelta)}l)`;
+      }
+
+      console.log(line);
+
+      if (first && first !== prev) {
+        const totalDiff = computeDiff(first, last);
+        console.log(
+          `${" ".repeat(30)} total: ${formatDeltaText(totalDiff.filesDelta)} files / ${formatDeltaText(
+            totalDiff.linesDelta
+          )} lines (since ${new Date(first.timestamp).toLocaleDateString()})`
+        );
+      }
     }
     if (missing.length > 0) {
       console.log("\nSkipped (not found):");

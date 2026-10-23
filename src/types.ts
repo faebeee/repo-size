@@ -18,6 +18,11 @@ export interface FolderStats {
   lines: number;
 }
 
+export interface SnapshotDiff {
+  filesDelta: number;
+  linesDelta: number;
+}
+
 export const MAX_HISTORY_ENTRIES = 200;
 export const DATA_DIR = ".repo-size";
 export const CONFIG_FILE = "config.json";

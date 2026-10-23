@@ -1,6 +1,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 import type { History } from "../types.js";
+import { computeDiff, formatDeltaColor, formatDeltaText } from "../diff.js";
 import { renderSparkline } from "./Sparkline.js";
 
 interface FolderListProps {
@@ -9,10 +10,8 @@ interface FolderListProps {
   selectedIndex: number;
 }
 
-function formatDelta(delta: number): { text: string; color: string } {
-  if (delta > 0) return { text: `+${delta}`, color: "green" };
-  if (delta < 0) return { text: `${delta}`, color: "red" };
-  return { text: "±0", color: "gray" };
+function Delta({ value }: { value: number }) {
+  return <Text color={formatDeltaColor(value)}>{formatDeltaText(value)}</Text>;
 }
 
 export function FolderList({ folders, history, selectedIndex }: FolderListProps) {
@@ -24,10 +23,12 @@ export function FolderList({ folders, history, selectedIndex }: FolderListProps)
       {folders.length === 0 && <Text dimColor>No folders tracked yet. Run "repo-size add &lt;path&gt;".</Text>}
       {folders.map((folder, idx) => {
         const snaps = history[folder] ?? [];
+        const first = snaps[0];
         const last = snaps[snaps.length - 1];
         const prev = snaps[snaps.length - 2];
         const isSelected = idx === selectedIndex;
-        const lineDelta = last && prev ? formatDelta(last.lines - prev.lines) : null;
+        const runDiff = last && prev ? computeDiff(prev, last) : null;
+        const totalDiff = last && first && snaps.length > 1 ? computeDiff(first, last) : null;
         const sparkValues = snaps.slice(-20).map((s) => s.lines);
 
         return (
@@ -40,9 +41,27 @@ export function FolderList({ folders, history, selectedIndex }: FolderListProps)
               <Box marginLeft={2} flexDirection="column">
                 <Text>
                   files: <Text bold>{last.files}</Text>
+                  {runDiff && (
+                    <Text>
+                      {" "}
+                      (<Delta value={runDiff.filesDelta} />)
+                    </Text>
+                  )}
                   {"  "}lines: <Text bold>{last.lines}</Text>
-                  {lineDelta && <Text color={lineDelta.color}> ({lineDelta.text})</Text>}
+                  {runDiff && (
+                    <Text>
+                      {" "}
+                      (<Delta value={runDiff.linesDelta} />)
+                    </Text>
+                  )}
                 </Text>
+                {totalDiff && (
+                  <Text dimColor>
+                    total: <Delta value={totalDiff.filesDelta} /> files /{" "}
+                    <Delta value={totalDiff.linesDelta} /> lines (since{" "}
+                    {new Date(first.timestamp).toLocaleDateString()})
+                  </Text>
+                )}
                 {sparkValues.length > 1 && (
                   <Text color="magenta">{renderSparkline(sparkValues)}</Text>
                 )}
