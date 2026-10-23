@@ -1,5 +1,5 @@
 {
-  "name": "repo-size",
+  "name": "@faebeee/repo-size",
   "version": "0.1.0",
   "description": "Terminal UI to scan folders and track file count / lines-of-code trends over time",
   "type": "module",
